@@ -1,0 +1,5 @@
+anthropic==0.97.0
+beautifulsoup4==4.14.3
+icalendar==7.0.3
+python-dotenv==1.2.2
+requests==2.33.1
