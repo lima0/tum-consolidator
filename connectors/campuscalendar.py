@@ -14,8 +14,8 @@ from zoneinfo import ZoneInfo
 import requests
 from icalendar import Calendar
 
-from db import Database
-from normalizer import normalize_calendar_event
+from storage.db import Database
+from storage.normalizer import normalize_calendar_event
 
 TZ = ZoneInfo("Europe/Berlin")
 # ICS types we want to strip from the course name

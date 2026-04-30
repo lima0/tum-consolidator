@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from models import Document, Event
+from storage.models import Document, Event
 
 ARTEMIS_BASE = "https://artemis.tum.de"
 

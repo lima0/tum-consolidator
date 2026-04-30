@@ -25,6 +25,7 @@ def make_session(extra_headers: dict = None) -> requests.Session:
 
 
 def save_cookies(session: requests.Session, path: str) -> None:
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(requests.utils.dict_from_cookiejar(session.cookies), f)
     log.debug("Cookies saved to %s", path)

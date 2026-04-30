@@ -8,15 +8,15 @@ from pathlib import Path
 import requests
 
 from connectors import http
-from db import Database
-from normalizer import normalize_artemis_assignment, normalize_artemis_attachment
+from storage.db import Database
+from storage.normalizer import normalize_artemis_assignment, normalize_artemis_attachment
 
 log = logging.getLogger(__name__)
 
 BASE_URL      = "https://artemis.tum.de"
 AUTH_URL      = f"{BASE_URL}/api/core/public/authenticate"
 DASHBOARD_URL = f"{BASE_URL}/api/core/courses/for-dashboard"
-COOKIES_FILE  = "artemis_cookies.json"
+COOKIES_FILE  = "state/artemis_cookies.json"
 RESOURCES_DIR = Path("resources")
 
 

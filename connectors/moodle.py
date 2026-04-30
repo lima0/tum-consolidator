@@ -23,8 +23,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from connectors import http
-from db import Database
-from normalizer import normalize_moodle_document
+from storage.db import Database
+from storage.normalizer import normalize_moodle_document
 
 log = logging.getLogger(__name__)
 
@@ -594,7 +594,7 @@ def _resolve_resource_url(s: requests.Session, view_url: str) -> list[dict]:
 def get_session(
     username: str,
     password: str,
-    cookie_path: str = "moodle_cookies.json",
+    cookie_path: str = "state/moodle_cookies.json",
 ) -> requests.Session:
     """
     Try to reuse a saved session; fall back to full login if the session
