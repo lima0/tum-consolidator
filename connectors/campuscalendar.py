@@ -25,13 +25,24 @@ _BLDG_RE = re.compile(r'\s*\(\d{4}\.\w+\.\w+\)\s*$')
 # Noisy constraints appended to room names, e.g. "nur Mo-Di 7-19 Uhr"
 _CONSTRAINT_RE = re.compile(r'\s+nur\s+.+$', re.IGNORECASE)
 
+_EVENT_TYPE_MAP = {
+    "VO": "lecture",  "VI": "lecture", "VU": "lecture",
+    "UE": "tutorial", "TU": "tutorial",
+    "PR": "practical",
+    "SE": "seminar",
+    "EX": "exam",
+}
+
 
 def _clean_summary(raw: str) -> str:
-    """Strip the type/group suffix from a TUM course summary string."""
-    # ICS escaping uses backslash-comma; icalendar already unescapes, but guard anyway
     text = raw.replace('\\,', ',').split(',')[0].strip()
     text = _TYPE_RE.sub('', text).strip()
     return text
+
+
+def _event_type(raw: str) -> str:
+    m = _TYPE_RE.search(raw)
+    return _EVENT_TYPE_MAP.get(m.group(1).upper(), "class") if m else "class"
 
 
 def _clean_location(raw: str) -> str:
@@ -86,11 +97,14 @@ def fetch_events(days: int = 10) -> list[dict]:
 
         summary  = str(component.get("SUMMARY", ""))
         location = str(component.get("LOCATION", ""))
+        uid      = str(component.get("UID", ""))
         events.append({
-            "start":    start,
-            "end":      end,
-            "title":    _clean_summary(summary),
-            "location": _clean_location(location),
+            "uid":        uid,
+            "start":      start,
+            "end":        end,
+            "title":      _clean_summary(summary),
+            "location":   _clean_location(location),
+            "event_type": _event_type(summary),
         })
 
     events.sort(key=lambda e: e["start"])
