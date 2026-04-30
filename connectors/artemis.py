@@ -74,7 +74,7 @@ def _score_label(included):
         "NOT_INCLUDED":        "EXCLUDED",
     }.get(included, included)
 
-
+# TIME FOR DUE DATES
 def _time_until(due: str | None) -> str | None:
     if not due:
         return None
@@ -94,9 +94,10 @@ def _time_until(due: str | None) -> str | None:
         return f"in {h}h {m}m"
     return f"in {m}m"
 
-
+# Assignments
 def _parse_participation(parts: list, participation_scores: dict) -> dict:
     result = {
+        #Default to NOT_STARTED, overwritten later
         "submission_status": "NOT_STARTED",
         "score":             None,
         "rated":             None,
@@ -161,6 +162,7 @@ def get_full_dashboard_data(session: requests.Session):
 
     all_courses_data = []
 
+# Parse all artemis Data - NOTE: use Artemis' schema available on their Github for later updates
     for item in response.json().get("courses", []):
         course = item.get("course", {})
 
@@ -192,10 +194,10 @@ def get_full_dashboard_data(session: requests.Session):
         dash_ids = {ex.get("id") for ex in course.get("exercises", [])}
         extra_exercises = []
 
-        # Try /with-exercises first (returns all, no participation data)
+        # Try /for-dashboard first (more reliable somehow(?) - revise later)
         for endpoint in (
-            f"{BASE_URL}/api/core/courses/{course_id}/with-exercises",
             f"{BASE_URL}/api/core/courses/{course_id}/for-dashboard",
+            f"{BASE_URL}/api/core/courses/{course_id}/with-exercises",
         ):
             r = session.get(endpoint)
             if r.status_code != 200:
@@ -255,6 +257,7 @@ def get_full_dashboard_data(session: requests.Session):
 
 # --- Lecture resources ---
 
+# In case Course uses artemis for File Uploads (Tutorials, Slides)
 def get_course_lectures(session: requests.Session, course_id: int) -> list:
     url      = f"{BASE_URL}/api/core/courses/{course_id}/for-dashboard"
     response = session.get(url)
@@ -263,9 +266,8 @@ def get_course_lectures(session: requests.Session, course_id: int) -> list:
         return []
     return response.json().get("course", {}).get("lectures", [])
 
-
+# Convert an attachment link to the student-accessible download URL.
 def _link_to_student_url(link: str) -> str:
-    """Convert an attachment link to the student-accessible download URL."""
     if link.startswith("http"):
         path = link.split(BASE_URL, 1)[-1].lstrip("/")
     elif link.startswith("/"):
@@ -328,7 +330,7 @@ def sync_lecture_resources(session: requests.Session, lecture_id: int, download_
 
 # --- Output ---
 
-def format_for_llm(data) -> str:
+def debug_print(data) -> str:
     lines = []
     for course in data:
         total = course["scores"]["total"]
@@ -377,11 +379,12 @@ def format_for_llm(data) -> str:
 def main():
     session = _make_session()
     if not _ensure_authenticated(session):
+        log.error("Authentication Failed - Exiting")
         return
 
     data = get_full_dashboard_data(session)
     if data:
-        print(format_for_llm(data))
+        print(debug_print(data))
 
         print("=== Lecture Resources ===\n")
         for course in data:

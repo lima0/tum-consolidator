@@ -97,7 +97,7 @@ def fetch_events(days: int = 10) -> list[dict]:
     return events
 
 
-def format_for_llm(events: list[dict], days: int = 10) -> str:
+def debug_print(events: list[dict], days: int = 10) -> str:
     if not events:
         return f"No events in the next {days} days."
 
@@ -119,7 +119,7 @@ def format_for_llm(events: list[dict], days: int = 10) -> str:
 
 def main(days: int = 10) -> None:
     events = fetch_events(days)
-    print(format_for_llm(events, days))
+    print(debug_print(events, days))
 
 
 if __name__ == "__main__":
