@@ -14,6 +14,9 @@ from zoneinfo import ZoneInfo
 import requests
 from icalendar import Calendar
 
+from db import Database
+from normalizer import normalize_calendar_event
+
 TZ = ZoneInfo("Europe/Berlin")
 # ICS types we want to strip from the course name
 _TYPE_RE = re.compile(
@@ -131,11 +134,14 @@ def debug_print(events: list[dict], days: int = 10) -> str:
     return "\n".join(lines).strip()
 
 
-def main(days: int = 10) -> None:
+def main(days: int = 10, db: Database | None = None) -> None:
     events = fetch_events(days)
+    if db:
+        for ev in events:
+            db.upsert_event(normalize_calendar_event(ev))
     print(debug_print(events, days))
 
 
 if __name__ == "__main__":
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 10
-    main(days)
+    main(days, db=Database())

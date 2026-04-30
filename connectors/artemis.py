@@ -8,6 +8,8 @@ from pathlib import Path
 import requests
 
 from connectors import http
+from db import Database
+from normalizer import normalize_artemis_assignment, normalize_artemis_attachment
 
 log = logging.getLogger(__name__)
 
@@ -294,7 +296,13 @@ def _filename_from_link(link: str, fallback: str) -> str:
     return name
 
 
-def sync_lecture_resources(session: requests.Session, lecture_id: int, download_folder: str) -> int:
+def sync_lecture_resources(
+    session: requests.Session,
+    lecture_id: int,
+    download_folder: str,
+    course: dict | None = None,
+    db: Database | None = None,
+) -> int:
     url      = f"{BASE_URL}/api/lecture/lectures/{lecture_id}/details"
     response = session.get(url)
     if response.status_code != 200:
@@ -323,6 +331,10 @@ def sync_lecture_resources(session: requests.Session, lecture_id: int, download_
         if http.download_file(session, file_url, dest):
             log.info("Downloaded: %s", filename)
             downloaded += 1
+
+        if db and course:
+            doc = normalize_artemis_attachment(course, unit, local_path=str(dest))
+            db.upsert_document(doc)
 
     log.info("Lecture %s: %d new file(s) downloaded.", lecture_id, downloaded)
     return downloaded
@@ -382,19 +394,24 @@ def main():
         log.error("Authentication Failed - Exiting")
         return
 
+    db   = Database()
     data = get_full_dashboard_data(session)
-    if data:
-        print(debug_print(data))
+    if not data:
+        return
 
-        print("=== Lecture Resources ===\n")
-        for course in data:
-            lectures = get_course_lectures(session, course["id"])
-            if not lectures:
-                continue
-            log.info("[%s] %d lecture(s)", course["shortName"], len(lectures))
-            for lecture in lectures:
-                folder = os.path.join(RESOURCES_DIR, course["shortName"], str(lecture["id"]))
-                sync_lecture_resources(session, lecture["id"], folder)
+    for course in data:
+        for exercise in course["exercises"]:
+            event = normalize_artemis_assignment(course, exercise)
+            db.upsert_event(event)
+        log.info("[%s] %d exercise(s) synced", course["shortName"], len(course["exercises"]))
+
+        lectures = get_course_lectures(session, course["id"])
+        if not lectures:
+            continue
+        log.info("[%s] %d lecture(s)", course["shortName"], len(lectures))
+        for lecture in lectures:
+            folder = os.path.join(RESOURCES_DIR, course["shortName"], str(lecture["id"]))
+            sync_lecture_resources(session, lecture["id"], folder, course=course, db=db)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,8 @@ import requests
 from bs4 import BeautifulSoup
 
 from connectors import http
+from db import Database
+from normalizer import normalize_moodle_document
 
 log = logging.getLogger(__name__)
 
@@ -493,6 +495,7 @@ def download_course_files(
     s: requests.Session,
     courses: list[dict],
     output_dir: str = "resources",
+    db: Database | None = None,
 ) -> None:
     """
     For every enrolled course, enumerate all downloadable modules
@@ -548,6 +551,10 @@ def download_course_files(
                         total_downloaded += 1
                     else:
                         total_skipped += 1
+
+                    if db:
+                        doc = normalize_moodle_document(course, mod, entry, local_path=str(dest))
+                        db.upsert_document(doc)
 
                     time.sleep(0.3)
 
@@ -636,4 +643,5 @@ if __name__ == "__main__":
         print(f"  [{c.get('id', '?'):>6}] {c.get('fullname') or c.get('shortname')}")
 
     print(f"\nDownloading course files to '{output_dir}/' ...")
-    download_course_files(session, courses, output_dir=output_dir)
+    db = Database()
+    download_course_files(session, courses, output_dir=output_dir, db=db)
