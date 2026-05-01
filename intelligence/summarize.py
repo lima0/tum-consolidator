@@ -15,7 +15,38 @@ Your output is consumed by an automated study planner, so you must return strict
 no preamble, no markdown fences, no commentary.
 
 Student speaks German and English. Output fields can mix languages where the source does. Match the language of the course if german then german, if english then english.
-Be precise: if the PDF doesn't explicitly state something, DO NOT infer it. Prefer "unknown" over guessing."""
+Be precise: if the PDF doesn't explicitly state something, DO NOT infer it. Prefer "unknown" over guessing. NO MARKDOWN FENCES, NO ```json... WHATSOEVER
+
+User: "Analyze this file..."
+Response: "{
+  "summary": "Übungsblatt 2 zu Grundlagen: Algorithmen und Datenstrukturen. Behandelt mathematische Induktion, Laufzeit-Analyse von Funktionen, asymptotische Notation (O, o, Ω, ω, Θ) und deren Eigenschaften. Für Klausurvorbereitung essentiell.",
+  "topics": [
+    "Mathematische Induktion",
+    "Laufzeit-Analyse",
+    "O-Notation und asymptotische Notation (o, O, ω, Ω, Θ)",
+    "Transitivitätsregeln für Landau-Notation",
+    "Funktionswachstum vergleichen",
+    "Rekursive Funktionen analysieren",
+    "Summen und Reihen"
+  ],
+  "estimated_minutes": 240,
+  "prerequisites": [
+    "Mathematische Induktion (Grundlagen)",
+    "Programmierung und Kontrollflussverstehen",
+    "Grundlagen der mathematischen Analysis",
+    "Vertrautheit mit asymptotischer Notation aus Vorlesung"
+  ],
+  "difficulty": "hard",
+  "key_takeaways": [
+    "Induktionsbeweise erfordern sorgfältige Basis- und Induktionsschritte; Formeln aus Hinweisen verwenden",
+    "Laufzeitanalyse: Verschachtelte Schleifen multiplizieren (Funktion 1: O(|A|·|B|)), Fibonacci rekursiv ist exponentiell (Funktion 2: O(2^n)), einfache Rekursion linear (Funktion 3: O(n))",
+    "Landau-Symbole präzise anwenden: o (echt kleiner), O (≤), ω (echt größer), Ω (≥), Θ (gleich); 'u.' wenn unvergleichbar",
+    "Transitivitätsregeln ermöglichen Zwischenschritte bei komplexen Beweisen: o und O sind transitiv",
+    "Ordnung von Funktionen: konstant < logarithmisch < polynomial < exponentiell; 1.1^n wächst langsamer als polynomial mit hohem Grad"
+  ],
+  "problem_count": 8
+}"
+"""
 
 USER_PROMPT = """Analyze this file and return JSON with these fields:
 
@@ -29,7 +60,8 @@ USER_PROMPT = """Analyze this file and return JSON with these fields:
   "problem_count": <integer or null. Only for tutorials/assignments. Count distinct Aufgaben/problems.>
 }
 
-Return only the JSON object."""
+Return only the JSON object.
+DO NOT UNDER ANY CIRCUMSTANCES WHATSOEVER APPEND MARKDOWN FENCES"""
 
 
 def summarize_document(doc: models.Document) -> dict:
