@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS documents (
     local_path    TEXT,
     url           TEXT,
     updated_at    TEXT,
+    summary_json  TEXT,
+    content_hash  TEXT,
     processed_at  TEXT DEFAULT NULL,
     PRIMARY KEY (source, source_id)
 );

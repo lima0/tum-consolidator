@@ -1,0 +1,108 @@
+import json
+import logging
+import time
+
+from anthropic import Anthropic, RateLimitError
+import os
+
+from storage import models
+
+log = logging.getLogger(__name__)
+
+SYSTEM_PROMPT = """You analyze TUM Informatics/Informatik course PDFs for a student preparing for exams.
+Your output is consumed by an automated study planner, so you must return strict JSON only.
+no preamble, no markdown fences, no commentary.
+
+Student speaks German and English. Output fields can mix languages where the source does. Match the language of the course if german then german, if english then english.
+Be precise: if the PDF doesn't explicitly state something, DO NOT infer it. Prefer "unknown" over guessing."""
+
+USER_PROMPT = """Analyze this file and return JSON with these fields:
+
+{
+  "summary": "2-3 sentence description of what this document is and why a student should care.",
+  "topics": ["specific concepts covered, max 8, use the language the source uses"],
+  "estimated_minutes": <integer, realistic time for an average student to work through this. For lectures: reading time. For tutorials/assignments: solving time.>,
+  "prerequisites": ["concepts the student needs before tackling this. Empty list if it's introductory."],
+  "difficulty": "easy" | "medium" | "hard",
+  "key_takeaways": ["3-5 bullet points a student would write in their notes"],
+  "problem_count": <integer or null. Only for tutorials/assignments. Count distinct Aufgaben/problems.>
+}
+
+Return only the JSON object."""
+
+
+def summarize_document(doc: models.Document) -> dict:
+    if not doc.local_path:
+        raise ValueError(f"Document {doc.source_id} has no local_path")
+
+    client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    with open(doc.local_path, "rb") as f:
+        uploaded = client.beta.files.upload(file=("document.pdf", f, "application/pdf"))
+    log.debug("Uploaded file id=%s", uploaded.id)
+
+    try:
+        response = client.beta.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=1024,
+            system=SYSTEM_PROMPT,
+            betas=["files-api-2025-04-14"],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": USER_PROMPT},
+                        {
+                            "type": "document",
+                            "source": {
+                                "type": "file",
+                                "file_id": uploaded.id,
+                            },
+                        },
+                    ],
+                }
+            ],
+        )
+    finally:
+        client.beta.files.delete(uploaded.id)
+        log.debug("Deleted remote file id=%s", uploaded.id)
+
+    print (response.content[0].text)
+    return json.loads(response.content[0].text)
+
+
+def process_unprocessed(db) -> None:
+    docs = db.get_unprocessed_documents()
+    for doc in docs:
+        for attempt in range(4):
+            try:
+                summary = summarize_document(doc)
+                db.upsert_document(models.Document(
+                    source=doc.source,
+                    source_id=doc.source_id,
+                    course=doc.course,
+                    title=doc.title,
+                    filename=doc.filename,
+                    local_path=doc.local_path,
+                    url=doc.url,
+                    summary_json=json.dumps(summary),
+                    updated_at=doc.updated_at,
+                ))
+                db.mark_document_processed(doc.source, doc.source_id)
+                log.info("✓ %s", doc.title)
+                break
+            except RateLimitError:
+                #Claude API limits at 30k input tokens per minute
+                if attempt == 3:
+                    log.error("✗ %s: rate limit, giving up", doc.title)
+                else:
+                    wait = 60 * (attempt + 1)
+                    log.warning("Rate limit hit, waiting %ds…", wait)
+                    time.sleep(wait)
+            except Exception as e:
+                log.error("✗ %s: %s", doc.title, e)
+                break
+
+if __name__ == "__main__":
+    from storage.db import Database
+    process_unprocessed(Database())

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS events (
 )
 """
 
+# TODO - Content Hashing
 CREATE_DOCUMENTS = """
 CREATE TABLE IF NOT EXISTS documents (
     source        TEXT NOT NULL,
@@ -31,36 +32,19 @@ CREATE TABLE IF NOT EXISTS documents (
     local_path    TEXT,
     url           TEXT,
     updated_at    TEXT,
+    summary_json  TEXT,
+    content_hash  TEXT,
     processed_at  TEXT DEFAULT NULL,
     PRIMARY KEY (source, source_id)
 )
 """
-
-MIGRATE_EVENTS = "ALTER TABLE events ADD COLUMN processed_at TEXT DEFAULT NULL"
-MIGRATE_DOCUMENTS = "ALTER TABLE documents ADD COLUMN processed_at TEXT DEFAULT NULL"
-
-
 class Database:
     def __init__(self, path: str = "state/data.db"):
         self.conn = sqlite3.connect(path)
+        self.conn.row_factory = sqlite3.Row
         self.conn.execute(CREATE_EVENTS)
         self.conn.execute(CREATE_DOCUMENTS)
-        self._migrate()
         self.conn.commit()
-
-    def _migrate(self) -> None:
-        existing = {
-            row[1]
-            for row in self.conn.execute("PRAGMA table_info(events)")
-        }
-        if "processed_at" not in existing:
-            self.conn.execute(MIGRATE_EVENTS)
-        existing = {
-            row[1]
-            for row in self.conn.execute("PRAGMA table_info(documents)")
-        }
-        if "processed_at" not in existing:
-            self.conn.execute(MIGRATE_DOCUMENTS)
 
     def upsert_event(self, e: Event) -> None:
         self.conn.execute(
@@ -85,22 +69,26 @@ class Database:
         )
         self.conn.commit()
 
+
+# TODO - fix this
+
     def upsert_document(self, d: Document) -> None:
         self.conn.execute(
             """
             INSERT INTO documents(source, source_id, course, title, filename,
-                                  local_path, url, updated_at)
-            VALUES (?,?,?,?,?,?,?,?)
+                                  local_path, url, updated_at, summary_json)
+            VALUES (?,?,?,?,?,?,?,?,?)
             ON CONFLICT(source, source_id) DO UPDATE SET
-                course     = excluded.course,
-                title      = excluded.title,
-                filename   = excluded.filename,
-                local_path = excluded.local_path,
-                url        = excluded.url,
-                updated_at = excluded.updated_at
+                course       = excluded.course,
+                title        = excluded.title,
+                filename     = excluded.filename,
+                local_path   = excluded.local_path,
+                url          = excluded.url,
+                updated_at   = excluded.updated_at,
+                summary_json = excluded.summary_json
             """,
             (d.source, d.source_id, d.course, d.title,
-             d.filename, d.local_path, d.url, d.updated_at),
+             d.filename, d.local_path, d.url, d.updated_at, d.summary_json),
         )
         self.conn.commit()
 
@@ -117,3 +105,30 @@ class Database:
             (source, source_id),
         )
         self.conn.commit()
+
+    def get_unprocessed_events(self) -> list[Event]:
+        rows = self.conn.execute(
+            "SELECT * FROM events WHERE processed_at IS NULL ORDER BY due ASC NULLS LAST"
+        ).fetchall()
+        return [
+            Event(
+                source=r["source"], source_id=r["source_id"], course=r["course"],
+                title=r["title"], event_type=r["event_type"], due=r["due"],
+                release=r["release"], status=r["status"], score=r["score"],
+                max_points=r["max_points"], url=r["url"], extra=r["extra"],
+            )
+            for r in rows
+        ]
+
+    def get_unprocessed_documents(self) -> list[Document]:
+        rows = self.conn.execute(
+            "SELECT * FROM documents WHERE processed_at IS NULL ORDER BY course, title"
+        ).fetchall()
+        return [
+            Document(
+                source=r["source"], source_id=r["source_id"], course=r["course"],
+                title=r["title"], filename=r["filename"], local_path=r["local_path"],
+                url=r["url"], summary_json=r["summary_json"], updated_at=r["updated_at"],
+            )
+            for r in rows
+        ]

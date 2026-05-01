@@ -55,6 +55,7 @@ def normalize_artemis_attachment(course: dict, unit: dict, local_path: str | Non
         local_path=local_path,
         url=link,
         updated_at=attachment.get("uploadDate"),
+        summary_json=None
     )
 
 
@@ -76,6 +77,7 @@ def normalize_moodle_document(
         local_path=local_path,
         url=entry.get("fileurl", ""),
         updated_at=str(tm) if tm else None,
+        summary_json=None
     )
 
 
