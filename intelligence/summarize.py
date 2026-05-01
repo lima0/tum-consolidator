@@ -5,6 +5,7 @@ import time
 from anthropic import Anthropic, RateLimitError
 import os
 
+from pypdf import PdfReader
 from storage import models
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,10 @@ Return only the JSON object."""
 def summarize_document(doc: models.Document) -> dict:
     if not doc.local_path:
         raise ValueError(f"Document {doc.source_id} has no local_path")
+
+    page_count = len(PdfReader(doc.local_path).pages)
+    if page_count > 20:
+        raise ValueError(f"PDF has {page_count} pages (max 20): {doc.local_path}")
 
     client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
