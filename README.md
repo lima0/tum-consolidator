@@ -25,7 +25,7 @@ Optional — richer notifications:
 brew install terminal-notifier
 ```
 
-Edit `context.md` to describe your current situation (courses, weak areas, progress). The daily briefing uses this to personalize recommendations.
+Edit `state/context.md` to describe your current situation (courses, weak areas, progress). The daily briefing uses this to personalize recommendations.
 
 ## Usage
 
