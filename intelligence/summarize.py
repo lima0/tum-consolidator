@@ -105,8 +105,6 @@ def summarize_document(doc: models.Document) -> dict:
     finally:
         client.beta.files.delete(uploaded.id)
         log.debug("Deleted remote file id=%s", uploaded.id)
-
-    print (response.content[0].text)
     return json.loads(response.content[0].text)
 
 
