@@ -1,16 +1,6 @@
 # TUMsolidator
 
-Consolidates Artemis, Moodle, and the TUM Campus Calendar into an LLM-powered study assistant.
-
-## Features
-
-- **Chat** — ask anything about your assignments, scores, schedule, or course materials
-- **Briefing** — daily summary of deadlines, schedule, and priority recommendation
-- **Agent** — autonomous mode: reads new PDFs, fires notifications, creates reminders, writes a digest
-- **Check** — lightweight background check (no LLM): detects score/status changes, sets deadline reminders
-- **Push notifications** — `terminal-notifier` or macOS native fallback
-- **macOS Reminders** — deadline-proximity reminders synced to iPhone
-- **PDF access** — lecture slides and tutorials uploaded to Anthropic Files API on demand
+Pulls Artemis assignments, Moodle course files, and the TUM Campus Calendar into a local SQLite database. Uses Claude Haiku to summarize downloaded PDFs and generates a daily study briefing.
 
 ## Setup
 
@@ -18,7 +8,7 @@ Consolidates Artemis, Moodle, and the TUM Campus Calendar into an LLM-powered st
 pip install -r requirements.txt
 ```
 
-Create a `.env` file:
+Create a `.env` file (see `.env.example`):
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
@@ -27,63 +17,69 @@ TUM_PASSWORD=your-password
 TUM_CALENDAR=https://campus.tum.de/tumonline/wbKalender.ical?...
 ```
 
-`TUM_CALENDAR` is the personal ICS URL from TUMOnline → Calendar → Export.
+`TUM_CALENDAR`: TUMOnline → Kalender → Persönlicher Kalender → iCal-Export.
 
-Optional — install `terminal-notifier` for richer notifications:
+Optional — richer notifications:
 
 ```bash
 brew install terminal-notifier
 ```
 
+Edit `context.md` to describe your current situation (courses, weak areas, progress). The daily briefing uses this to personalize recommendations.
+
 ## Usage
 
 ```bash
-# Interactive chat
+# Run full pipeline: sync all sources → summarize new PDFs → push briefing to Apple Notes
 python main.py
 
-# Daily briefing (single LLM call, then exit)
-python main.py --brief
+# Run connectors individually
+python -m connectors.artemis        # sync assignments + download lecture slides
+python -m connectors.moodle         # sync and download Moodle course files
+python -m connectors.campuscalendar # sync schedule for next 10 days
 
-# Autonomous agent (LLM-driven: summaries, notifications, digest)
-python main.py --agent
+# Summarize newly downloaded PDFs (Claude Haiku via Files API)
+python -m intelligence.summarize
 
-# Lightweight check (no LLM: score diffs + deadline reminders)
-python main.py --check
+# Generate and push daily briefing to Apple Notes
+python -m intelligence.planner
 ```
-
-## Background scheduling (launchd)
-
-```bash
-# Install both jobs (check every 2h + agent at 08:00 and 19:00)
-python scripts/install_launchd.py
-
-# Install individually
-python scripts/install_launchd.py check
-python scripts/install_launchd.py agent
-
-# Remove all
-python scripts/install_launchd.py uninstall
-```
-
-Logs land in `logs/check.log` and `logs/agent.log`.
 
 ## Sources
 
 | Source | What it provides |
 |---|---|
-| Artemis | Assignments, scores, submission status, lecture attachments |
-| Moodle | Course files (synced in background on chat startup) |
-| TUM Campus Calendar | Schedule for the next 7 days |
+| Artemis | Assignments, submission status, scores, lecture slide attachments |
+| Moodle | Course files and PDFs via Shibboleth SSO |
+| TUM Campus Calendar | Personal schedule via ICS feed |
 
-## Data layout
+## How it works
 
 ```
-resources/          # downloaded course materials (Artemis + Moodle)
+connectors/
+  artemis.py        → Artemis REST API  ──┐
+  moodle.py         → Moodle HTML scrape  ├──→ storage/db.py (SQLite) ──→ intelligence/
+  campuscalendar.py → ICS feed            ┘                                 summarize.py (Haiku)
+                                                                             planner.py (Haiku)
+storage/
+  models.py         Event, Document dataclasses
+  normalizer.py     source dicts → typed models
+  db.py             SQLite CRUD (upsert, mark_processed, get_unprocessed)
+  schema.sql        schema reference
+
+state/
+  data.db           SQLite database
+  artemis_cookies.json
+  moodle_cookies.json
+
+resources/          downloaded course materials
   COURSE/
-    LECTURE_ID/     # Artemis lecture attachments
-    MODULE_NAME/    # Moodle module files
-agent_memory.md     # agent digest history (last 7 entries injected into context)
-state.json          # exercise snapshots + known files for diffing
-.file_id_cache.json # Anthropic Files API upload cache
-logs/               # launchd stdout/stderr
+    LECTURE_ID/     Artemis lecture attachments
+    SECTION/        Moodle module files
+
+context.md          student context injected into daily briefing prompt
 ```
+
+## Notifications
+
+New file downloads trigger a macOS notification immediately. Uses `terminal-notifier` if installed, falls back to native `osascript`.
