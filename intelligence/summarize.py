@@ -112,9 +112,14 @@ def summarize_document(doc: models.Document) -> dict:
 SUPPORTED_EXTENSIONS = {".pdf"}
 
 
-def process_unprocessed(db) -> None:
+def process_unprocessed(db, limit: int = 0) -> None:
+    """Process unprocessed PDFs. limit=0 means no cap."""
     docs = db.get_unprocessed_documents()
+    processed = 0
     for doc in docs:
+        if limit and processed >= limit:
+            log.info("Limit of %d reached, stopping. %d doc(s) remain.", limit, len(docs) - processed)
+            break
         if not doc.local_path or Path(doc.local_path).suffix.lower() not in SUPPORTED_EXTENSIONS:
             log.debug("Skipping non-PDF: %s", doc.filename)
             db.mark_document_processed(doc.source, doc.source_id)
@@ -136,6 +141,7 @@ def process_unprocessed(db) -> None:
                 ))
                 db.mark_document_processed(doc.source, doc.source_id)
                 log.info("✓ %s", doc.title)
+                processed += 1
                 break
             except RateLimitError:
                 #Claude API limits at 30k input tokens per minute
