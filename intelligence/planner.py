@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -24,9 +25,13 @@ Recently added course materials (last 48h):
 {materials}
 
 Write a concise daily briefing (5-8 sentences). Prioritize what to work on TODAY and WHY. \
+The WHY is important. It's how the student should orient themselves.
 Be specific about time estimates where available. Flag anything critical or overdue. \
 Don't list everything — reason about what matters most given the schedule and workload.
-Summarize your briefing again in the end."""
+Output Format: Plain text only. No markdown. No asterisks, no hashes.
+Bullet points and numbered lists are okay. 
+Mention a general summary, Actionable task list, What should be done. Anything a student may need to keep up.
+"""
 
 
 # ── Plain-text helpers for LLM context ──────────────────────────────────────
@@ -110,13 +115,60 @@ def build_briefing(db) -> str:
     client   = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=512,
+        max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text
+    text = response.content[0].text
+    # strip any markdown the model produces despite instructions
+    text = re.sub(r'\*+([^*]+)\*+', r'\1', text)   # **bold** / *italic*
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)  # ## headers
+    return text
 
 
 # ── Output ───────────────────────────────────────────────────────────────────
+
+_CSS = """
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    padding: 40px 20px;
+}
+.card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px 32px;
+    max-width: 680px;
+    margin: 0 auto 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6e6e73;
+    margin-bottom: 14px;
+}
+.briefing-text { font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
+ul { padding-left: 18px; }
+li { font-size: 14px; line-height: 1.6; margin: 5px 0; }
+b  { font-weight: 600; }
+i  { color: #6e6e73; font-style: normal; }
+.ts { font-size: 12px; color: #aeaeb2; text-align: center; margin-top: 8px; }
+"""
+
+
+def push_to_browser(html: str, path: str = "/tmp/tumsol_briefing.html") -> None:
+    from datetime import datetime
+    ts = datetime.now().strftime("%a %d %b %Y, %H:%M")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(
+            f"<html><head><meta charset='utf-8'><style>{_CSS}</style></head>"
+            f"<body>{html}<p class='ts'>Updated {ts}</p></body></html>"
+        )
+    subprocess.run(["open", path])
 
 
 if __name__ == "__main__":
