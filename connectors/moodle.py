@@ -549,6 +549,8 @@ def download_course_files(
                     wrote = download_file(s, fileurl, dest, timemodified)
                     if wrote:
                         total_downloaded += 1
+                        from connectors.notify import notify
+                        notify(shortname, f"New material: {mod['name']}")
                     else:
                         total_skipped += 1
 

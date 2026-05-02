@@ -331,6 +331,9 @@ def sync_lecture_resources(
         if http.download_file(session, file_url, dest):
             log.info("Downloaded: %s", filename)
             downloaded += 1
+            if course:
+                from connectors.notify import notify
+                notify(course["shortName"], f"New material: {unit_name}")
 
         if db and course:
             doc = normalize_artemis_attachment(course, unit, local_path=str(dest))
