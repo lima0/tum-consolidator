@@ -1,7 +1,12 @@
 """
-Full pipeline: sync all sources → summarize new PDFs → push daily briefing.
+TUMsolidator pipeline.
+
+  python main.py           # full sync + summarize + brief
+  python main.py --brief   # briefing only (fast — uses existing DB data)
+  python main.py --sync    # sync connectors only, no LLM
 """
 
+import argparse
 import logging
 import os
 
@@ -10,50 +15,42 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logging.basicConfig(
-    level=logging.DEBUG if os.environ.get("DEBUG", "").lower() == "true" else logging.BASIC_FORMAT,
+    level=logging.DEBUG if os.environ.get("DEBUG", "").lower() == "true" else logging.INFO,
     format="%(levelname)s %(name)s %(message)s",
 )
 log = logging.getLogger(__name__)
 
 
-def main() -> None:
-    from storage.db import Database
-    db = Database()
+def sync(db) -> None:
+    """Pull latest data from all sources into the DB."""
 
-    # 1. Artemis — exercises + lecture attachments
     log.info("=== Artemis ===")
     from connectors import artemis
+    from storage.normalizer import normalize_artemis_assignment
     session = artemis._make_session()
     if artemis._ensure_authenticated(session):
         data = artemis.get_full_dashboard_data(session)
         if data:
             for course in data:
                 for exercise in course["exercises"]:
-                    from storage.normalizer import normalize_artemis_assignment
                     db.upsert_event(normalize_artemis_assignment(course, exercise))
-                log.info("[%s] %d exercise(s) synced", course["shortName"], len(course["exercises"]))
-
-                lectures = artemis.get_course_lectures(session, course["id"])
-                for lecture in lectures:
+                log.info("[%s] %d exercise(s)", course["shortName"], len(course["exercises"]))
+                for lecture in artemis.get_course_lectures(session, course["id"]):
                     folder = os.path.join("resources", course["shortName"], str(lecture["id"]))
                     artemis.sync_lecture_resources(session, lecture["id"], folder, course=course, db=db)
     else:
         log.error("Artemis auth failed, skipping")
 
-    # 2. Moodle — course files
     log.info("=== Moodle ===")
     try:
         from connectors import moodle
-        username = os.environ["TUM_USERNAME"]
-        password = os.environ["TUM_PASSWORD"]
-        msession = moodle.get_session(username, password)
+        msession = moodle.get_session(os.environ["TUM_USERNAME"], os.environ["TUM_PASSWORD"])
         sesskey, userid = moodle.get_sesskey_and_userid(msession)
         courses = moodle.get_enrolled_courses(msession, sesskey, userid)
         moodle.download_course_files(msession, courses, output_dir="resources", db=db)
     except Exception as exc:
         log.error("Moodle sync failed: %s", exc)
 
-    # 3. Calendar — upcoming schedule
     log.info("=== Calendar ===")
     try:
         from connectors import campuscalendar
@@ -61,30 +58,49 @@ def main() -> None:
         events = campuscalendar.fetch_events(days=10)
         for ev in events:
             db.upsert_event(normalize_calendar_event(ev))
-        log.info("%d calendar event(s) synced", len(events))
+        log.info("%d calendar event(s)", len(events))
     except Exception as exc:
         log.error("Calendar sync failed: %s", exc)
 
-    # 4. Summarize newly downloaded PDFs
-    log.info("=== Summarize ===")
+
+def summarize(db, limit: int = 10) -> None:
+    """Summarize up to `limit` unprocessed PDFs (avoids rate-limit cascade)."""
     try:
         from intelligence.summarize import process_unprocessed
-        process_unprocessed(db)
+        process_unprocessed(db, limit=limit)
     except Exception as exc:
         log.error("Summarization failed: %s", exc)
 
-    # 5. Daily briefing → Apple Notes
-    log.info("=== Briefing ===")
+
+def brief(db) -> None:
+    """Generate and print daily briefing."""
     try:
-        from intelligence.planner import build_briefing, build_note, push_to_notes
+        from intelligence.planner import build_briefing
         briefing  = build_briefing(db)
-        dashboard = build_note(db)
-        full_note = f"<h2>Today's Briefing</h2><p>{briefing}</p>\n{dashboard}"
-        push_to_notes(full_note)
-        log.info("Briefing pushed to Apple Notes")
         print("\n" + briefing)
     except Exception as exc:
         log.error("Briefing failed: %s", exc)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="TUMsolidator")
+    parser.add_argument("--brief",    action="store_true", help="briefing only, skip sync")
+    parser.add_argument("--sync",     action="store_true", help="sync connectors only, no LLM")
+    parser.add_argument("--limit",    type=int, default=10, metavar="N",
+                        help="max PDFs to summarize per run (default: 10)")
+    args = parser.parse_args()
+
+    from storage.db import Database
+    db = Database()
+
+    if args.brief:
+        brief(db)
+    elif args.sync:
+        sync(db)
+    else:
+        sync(db)
+        summarize(db, limit=args.limit)
+        brief(db)
 
 
 if __name__ == "__main__":
