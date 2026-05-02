@@ -3,6 +3,7 @@
 import json
 import logging
 import time
+from pathlib import Path
 
 from anthropic import Anthropic, RateLimitError
 import os
@@ -108,9 +109,17 @@ def summarize_document(doc: models.Document) -> dict:
     return json.loads(response.content[0].text)
 
 
+SUPPORTED_EXTENSIONS = {".pdf"}
+
+
 def process_unprocessed(db) -> None:
     docs = db.get_unprocessed_documents()
     for doc in docs:
+        if not doc.local_path or Path(doc.local_path).suffix.lower() not in SUPPORTED_EXTENSIONS:
+            log.debug("Skipping non-PDF: %s", doc.filename)
+            db.mark_document_processed(doc.source, doc.source_id)
+            continue
+
         for attempt in range(4):
             try:
                 summary = summarize_document(doc)
