@@ -45,12 +45,20 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute(CREATE_EVENTS)
         self.conn.execute(CREATE_DOCUMENTS)
-        # migration: add first_seen to existing DBs
+        # migration: add first_seen column
         try:
             self.conn.execute("ALTER TABLE documents ADD COLUMN first_seen TEXT")
             self.conn.execute("UPDATE documents SET first_seen = datetime('now') WHERE first_seen IS NULL")
         except sqlite3.OperationalError:
             pass
+        # migration: reset processed_at for rows where summary_json was wiped by a connector
+        # re-sync (connector upsert previously overwrote summary_json with NULL)
+        self.conn.execute("""
+            UPDATE documents
+            SET processed_at = NULL
+            WHERE processed_at IS NOT NULL
+              AND summary_json IS NULL
+        """)
         self.conn.commit()
 
     def upsert_event(self, e: Event) -> None:
@@ -77,8 +85,6 @@ class Database:
         self.conn.commit()
 
 
-# TODO - fix this
-
     def upsert_document(self, d: Document) -> None:
         self.conn.execute(
             """
@@ -92,7 +98,7 @@ class Database:
                 local_path   = excluded.local_path,
                 url          = excluded.url,
                 updated_at   = excluded.updated_at,
-                summary_json = excluded.summary_json
+                summary_json = COALESCE(documents.summary_json, excluded.summary_json)
             """,
             (d.source, d.source_id, d.course, d.title,
              d.filename, d.local_path, d.url, d.updated_at, d.summary_json),
