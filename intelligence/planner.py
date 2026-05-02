@@ -161,7 +161,6 @@ i  { color: #6e6e73; font-style: normal; }
 
 
 def push_to_browser(html: str, path: str = "/tmp/tumsol_briefing.html") -> None:
-    from datetime import datetime
     ts = datetime.now().strftime("%a %d %b %Y, %H:%M")
     with open(path, "w", encoding="utf-8") as f:
         f.write(

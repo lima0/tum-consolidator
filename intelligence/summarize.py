@@ -71,10 +71,6 @@ def summarize_document(doc: models.Document) -> dict:
     if not doc.local_path:
         raise ValueError(f"Document {doc.source_id} has no local_path")
 
-    page_count = len(PdfReader(doc.local_path).pages)
-    if page_count > 20:
-        raise ValueError(f"PDF has {page_count} pages (max 20): {doc.local_path}")
-
     client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     with open(doc.local_path, "rb") as f:
@@ -125,6 +121,18 @@ def process_unprocessed(db, limit: int = 0) -> None:
             db.mark_document_processed(doc.source, doc.source_id)
             continue
 
+        try:
+            page_count = len(PdfReader(doc.local_path).pages)
+        except Exception as e:
+            log.warning("Skipping unreadable PDF %s: %s", doc.filename, e)
+            db.mark_document_processed(doc.source, doc.source_id)
+            continue
+
+        if page_count > 20:
+            log.info("Skipping %s: %d pages (max 20)", doc.filename, page_count)
+            db.mark_document_processed(doc.source, doc.source_id)
+            continue
+
         for attempt in range(4):
             try:
                 summary = summarize_document(doc)
@@ -141,7 +149,6 @@ def process_unprocessed(db, limit: int = 0) -> None:
                 ))
                 db.mark_document_processed(doc.source, doc.source_id)
                 log.info("✓ %s", doc.title)
-                processed += 1
                 break
             except RateLimitError:
                 #Claude API limits at 30k input tokens per minute
