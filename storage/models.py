@@ -27,6 +27,6 @@ class Document:
     filename: str
     local_path: Optional[str]
     url: Optional[str]
-    # TODO - add content hash
     summary_json: Optional[str]
     updated_at: Optional[str]
+    first_seen: Optional[str] = None

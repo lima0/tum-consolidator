@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS documents (
     updated_at    TEXT,
     summary_json  TEXT,
     content_hash  TEXT,
+    first_seen    TEXT,
     processed_at  TEXT DEFAULT NULL,
     PRIMARY KEY (source, source_id)
 )
@@ -44,6 +45,12 @@ class Database:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute(CREATE_EVENTS)
         self.conn.execute(CREATE_DOCUMENTS)
+        # migration: add first_seen to existing DBs
+        try:
+            self.conn.execute("ALTER TABLE documents ADD COLUMN first_seen TEXT")
+            self.conn.execute("UPDATE documents SET first_seen = datetime('now') WHERE first_seen IS NULL")
+        except sqlite3.OperationalError:
+            pass
         self.conn.commit()
 
     def upsert_event(self, e: Event) -> None:
@@ -76,8 +83,8 @@ class Database:
         self.conn.execute(
             """
             INSERT INTO documents(source, source_id, course, title, filename,
-                                  local_path, url, updated_at, summary_json)
-            VALUES (?,?,?,?,?,?,?,?,?)
+                                  local_path, url, updated_at, summary_json, first_seen)
+            VALUES (?,?,?,?,?,?,?,?,?, datetime('now'))
             ON CONFLICT(source, source_id) DO UPDATE SET
                 course       = excluded.course,
                 title        = excluded.title,
@@ -129,6 +136,7 @@ class Database:
                 source=r["source"], source_id=r["source_id"], course=r["course"],
                 title=r["title"], filename=r["filename"], local_path=r["local_path"],
                 url=r["url"], summary_json=r["summary_json"], updated_at=r["updated_at"],
+                first_seen=r["first_seen"],
             )
             for r in rows
         ]
