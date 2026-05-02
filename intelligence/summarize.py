@@ -1,5 +1,3 @@
-## Script to summarize all the downloaded documents with Claude
-
 import json
 import logging
 import time

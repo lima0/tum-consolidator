@@ -25,7 +25,6 @@ CREATE TABLE IF NOT EXISTS documents (
     url           TEXT,
     updated_at    TEXT,
     summary_json  TEXT,
-    content_hash  TEXT,
     first_seen    TEXT,
     processed_at  TEXT DEFAULT NULL,
     PRIMARY KEY (source, source_id)

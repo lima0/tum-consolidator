@@ -7,7 +7,6 @@ from pathlib import Path
 
 from anthropic import Anthropic
 
-NOTE_NAME    = "TUMsolidator"
 CONTEXT_FILE = "state/context.md"
 
 BRIEFING_PROMPT = """You are a study advisor for a TUM Informatics student.
@@ -178,5 +177,3 @@ if __name__ == "__main__":
 
     print("\n--- BRIEFING ---")
     print(briefing)
-    # push_to_notes(full_note)
-    # print("Note pushed to Apple Notes.")

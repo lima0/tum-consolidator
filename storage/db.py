@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS documents (
     url           TEXT,
     updated_at    TEXT,
     summary_json  TEXT,
-    content_hash  TEXT,
     first_seen    TEXT,
     processed_at  TEXT DEFAULT NULL,
     PRIMARY KEY (source, source_id)
@@ -118,20 +117,6 @@ class Database:
             (source, source_id),
         )
         self.conn.commit()
-
-    def get_unprocessed_events(self) -> list[Event]:
-        rows = self.conn.execute(
-            "SELECT * FROM events WHERE processed_at IS NULL ORDER BY due ASC NULLS LAST"
-        ).fetchall()
-        return [
-            Event(
-                source=r["source"], source_id=r["source_id"], course=r["course"],
-                title=r["title"], event_type=r["event_type"], due=r["due"],
-                release=r["release"], status=r["status"], score=r["score"],
-                max_points=r["max_points"], url=r["url"], extra=r["extra"],
-            )
-            for r in rows
-        ]
 
     def get_unprocessed_documents(self) -> list[Document]:
         rows = self.conn.execute(
