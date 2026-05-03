@@ -19,6 +19,7 @@ Student speaks German and English. Output fields can mix languages where the sou
 Be precise: if the PDF doesn't explicitly state something, DO NOT infer it. Prefer "unknown" over guessing. NO MARKDOWN FENCES, NO ```json... WHATSOEVER
 
 User: "Analyze this file..."
+Start your response with "{"summary":" directly. don't add new lines, no \\n or any formatting whatsover, raw JSON like any API would give.
 Response: "{
   "summary": "Übungsblatt 2 zu Grundlagen: Algorithmen und Datenstrukturen. Behandelt mathematische Induktion, Laufzeit-Analyse von Funktionen, asymptotische Notation (O, o, Ω, ω, Θ) und deren Eigenschaften. Für Klausurvorbereitung essentiell.",
   "topics": [
