@@ -2,6 +2,9 @@
 
 Pulls Artemis assignments, Moodle course files, and the TUM Campus Calendar into a local SQLite database. Uses Claude Haiku to summarize downloaded PDFs and generates a daily study briefing.
 
+![screenshot of output](image.png)
+![alt text](image-1.png)
+
 ## Setup
 
 ```bash

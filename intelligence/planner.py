@@ -23,18 +23,13 @@ Today and tomorrow schedule:
 Recently added course materials (last 48h):
 {materials}
 
-Write a concise daily briefing (5-8 sentences). Prioritize what to work on and WHY. \
-The WHY is important. It's how the student should orient themselves.
-Be specific about time estimates where available. Flag anything critical or overdue. \
-Don't list everything — reason about what matters most given the schedule and workload.
-Output Format: Plain text only. No markdown. No asterisks, no hashes.
-Bullet points and numbered lists are okay. 
+Write a concise daily briefing. Use markdown: **bold** for course names and deadlines, bullet lists for tasks, `code` for time blocks. Be specific and direct.
 
-1. One sentence summary of today's situation.
-2. Concrete study schedule for TODAY: assign specific materials to time blocks based on estimated_minutes, difficulty, and proximity to deadlines. Be arithmetic — if student has 4h free, allocate up to 240min total. 
-3. Flag anything overdue or due tomorrow.
-
-Mention a general summary, Actionable task list, What should be done. Anything a student may need to keep up.
+Structure:
+**Situation** — one sentence on today's priority and why.
+**Schedule** — time-blocked study plan using estimated_minutes. Be arithmetic: if 4h free, allocate ≤240min total.
+**Deadlines** — flag anything overdue or due within 24h in bold red if critical.
+**Action list** — 3-5 concrete next steps.
 """
 
 
@@ -142,10 +137,13 @@ def build_briefing(db) -> str:
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = response.content[0].text
-    # strip any markdown the model produces despite instructions
-    text = re.sub(r'\*+([^*]+)\*+', r'\1', text)   # **bold** / *italic*
-    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)  # ## headers
+    return response.content[0].text
+
+
+def _strip_markdown(text: str) -> str:
+    text = re.sub(r'\*+([^*]+)\*+', r'\1', text)
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'`([^`]+)`', r'\1', text)
     return text
 
 
@@ -251,7 +249,13 @@ body {
     color: #aeaeb2;
     margin-bottom: 16px;
 }
-.briefing-text { font-size: 15px; line-height: 1.75; white-space: pre-wrap; }
+.briefing-text { font-size: 15px; line-height: 1.75; }
+.briefing-text h1,.briefing-text h2,.briefing-text h3 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: #1d1d1f; }
+.briefing-text p { margin: 6px 0; }
+.briefing-text ul,.briefing-text ol { padding-left: 20px; margin: 6px 0; }
+.briefing-text li { margin: 4px 0; }
+.briefing-text strong { font-weight: 600; }
+.briefing-text code { background: #f2f2f7; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
 .row {
     display: flex;
     align-items: baseline;
@@ -304,8 +308,12 @@ def push_to_browser(html: str, path: str = "/tmp/tumsol_briefing.html") -> None:
     ts = datetime.now().strftime("%a %d %b %Y, %H:%M")
     with open(path, "w", encoding="utf-8") as f:
         f.write(
-            f"<html><head><meta charset='utf-8'><style>{_CSS}</style></head>"
-            f"<body>{html}<p class='ts'>Updated {ts}</p></body></html>"
+            f"<html><head><meta charset='utf-8'>"
+            f"<script src='https://cdn.jsdelivr.net/npm/marked/marked.min.js'></script>"
+            f"<style>{_CSS}</style></head>"
+            f"<body>{html}<p class='ts'>Updated {ts}</p>"
+            f"<script>document.querySelectorAll('.briefing-md').forEach(el=>{{el.innerHTML=marked.parse(el.dataset.md);}});</script>"
+            f"</body></html>"
         )
     subprocess.run(["open", path])
 

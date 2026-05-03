@@ -75,18 +75,17 @@ def summarize(db, limit: int = 10) -> None:
 def brief(db) -> None:
     """Generate briefing, open in browser, print to terminal."""
     try:
-        from intelligence.planner import build_briefing, push_to_browser, _deadlines_html, _materials_html
+        import html as _html
+        from intelligence.planner import build_briefing, push_to_browser, _deadlines_html, _materials_html, _strip_markdown
         briefing = build_briefing(db)
-        html = (
-            _deadlines_html(db) +
-            _materials_html(db) +
+        card = (
             "<div class='card'>"
             "<h2>Today's Briefing</h2>"
-            f"<p class='briefing-text'>{briefing}</p>"
+            f"<div class='briefing-text briefing-md' data-md='{_html.escape(briefing, quote=True)}'></div>"
             "</div>"
         )
-        push_to_browser(html)
-        print("\n" + briefing)
+        push_to_browser(_deadlines_html(db) + _materials_html(db) + card)
+        print("\n" + _strip_markdown(briefing))
     except Exception as exc:
         log.error("Briefing failed: %s", exc)
 
