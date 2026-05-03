@@ -81,15 +81,35 @@ def _calendar_text(db) -> str:
     return "\n".join(lines)
 
 
-def _materials_text(db) -> str:
+def _effective_date(r) -> datetime | None:
+    s = json.loads(r["summary_json"]) if r["summary_json"] else {}
+    release = s.get("release_date")
+    field = release if release else r["first_seen"]
+    if field:
+        try:
+            return datetime.fromisoformat(str(field)[:10])
+        except ValueError:
+            pass
+    return None
+
+
+def _recent_materials(db):
     rows = db.conn.execute("""
-        SELECT course, title, summary_json
+        SELECT course, title, summary_json, local_path, updated_at, first_seen
         FROM documents
-        WHERE first_seen > datetime('now', '-48 hours')
-          AND processed_at IS NOT NULL
+        WHERE processed_at IS NOT NULL
         ORDER BY first_seen DESC
-        LIMIT 10
+        LIMIT 60
     """).fetchall()
+    return sorted(
+        rows,
+        key=lambda r: _effective_date(r) or datetime.min,
+        reverse=True,
+    )[:10]
+
+
+def _materials_text(db) -> str:
+    rows = _recent_materials(db)
     if not rows:
         return "None."
     lines = []
@@ -176,15 +196,7 @@ def _deadlines_html(db) -> str:
 
 
 def _materials_html(db) -> str:
-    rows = db.conn.execute("""
-        SELECT course, title, summary_json, local_path
-        FROM documents
-        WHERE first_seen > datetime('now', '-48 hours')
-          AND processed_at IS NOT NULL
-          AND summary_json IS NOT NULL
-        ORDER BY first_seen DESC
-        LIMIT 10
-    """).fetchall()
+    rows = [r for r in _recent_materials(db) if r["summary_json"]]
     if not rows:
         return ""
     items = []
@@ -207,7 +219,7 @@ def _materials_html(db) -> str:
         )
     return (
         "<div class='card'>"
-        "<h2>New Materials (48h)</h2>"
+        "<h2>Recent Materials (±7 days)</h2>"
         + "".join(items) +
         "</div>"
     )

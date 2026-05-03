@@ -46,7 +46,8 @@ Response: "{
     "Transitivitätsregeln ermöglichen Zwischenschritte bei komplexen Beweisen: o und O sind transitiv",
     "Ordnung von Funktionen: konstant < logarithmisch < polynomial < exponentiell; 1.1^n wächst langsamer als polynomial mit hohem Grad"
   ],
-  "problem_count": 8
+  "problem_count": 8,
+  "release_date": "2024-10-21"
 }"
 """
 
@@ -59,7 +60,8 @@ USER_PROMPT = """Analyze this file and return JSON with these fields:
   "prerequisites": ["concepts the student needs before tackling this. Empty list if it's introductory."],
   "difficulty": "easy" | "medium" | "hard",
   "key_takeaways": ["3-5 bullet points a student would write in their notes"],
-  "problem_count": <integer or null. Only for tutorials/assignments. Count distinct Aufgaben/problems.>
+  "problem_count": <integer or null. Only for tutorials/assignments. Count distinct Aufgaben/problems.>,
+  "release_date": "<YYYY-MM-DD if the document itself states ANY release/issue/Ausgabe date which is plausible, else null if unknown or uncertain>"
 }
 
 Return only the JSON object.
@@ -107,7 +109,7 @@ def summarize_document(doc: models.Document) -> dict:
 SUPPORTED_EXTENSIONS = {".pdf"}
 
 
-def process_unprocessed(db, limit: int = 0) -> None:
+def process_unprocessed(db: Database, limit: int = 0) -> None:
     """Process unprocessed PDFs. limit=0 means no cap."""
     docs = db.get_unprocessed_documents()
     processed = 0
