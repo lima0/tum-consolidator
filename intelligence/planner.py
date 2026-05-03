@@ -23,12 +23,16 @@ Today and tomorrow schedule:
 Recently added course materials (last 48h):
 {materials}
 
+Knowledge gaps (prerequisites required but not yet covered):
+{gaps}
+
 Write a concise daily briefing. Use markdown: **bold** for course names and deadlines, bullet lists for tasks, `code` for time blocks. Be specific and direct.
 
 Structure:
 **Situation** — one sentence on today's priority and why.
 **Schedule** — time-blocked study plan using estimated_minutes. Be arithmetic: if 4h free, allocate ≤240min total.
-**Deadlines** — flag anything overdue or due within 24h in bold red if critical.
+**Deadlines** — flag anything overdue or due within 24h in bold.
+**Knowledge gaps** — if any gaps exist, call out specifically which topics to review before tackling upcoming materials. Skip this section if no gaps.
 **Action list** — 3-5 concrete next steps.
 """
 
@@ -117,6 +121,35 @@ def _materials_text(db) -> str:
     return "\n".join(lines)
 
 
+# ── Gap detection ────────────────────────────────────────────────────────────
+
+def _gaps_text(db) -> str:
+    rows = db.conn.execute("""
+        SELECT summary_json FROM documents
+        WHERE processed_at IS NOT NULL AND summary_json IS NOT NULL
+        ORDER BY first_seen DESC LIMIT 30
+    """).fetchall()
+    prereqs: list[str] = []
+    covered: list[str] = []
+    for r in rows:
+        try:
+            s = json.loads(r["summary_json"]) if r["summary_json"] else {}
+        except (json.JSONDecodeError, TypeError):
+            continue
+        prereqs.extend(s.get("prerequisites", []))
+        covered.extend(s.get("topics", []))
+    if not prereqs:
+        return "None detected."
+    prereqs_unique = sorted(set(prereqs))
+    covered_unique = sorted(set(covered))
+    return (
+        "Prerequisites required by course materials:\n"
+        + "\n".join(f"- {p}" for p in prereqs_unique)
+        + "\n\nTopics covered in materials you have:\n"
+        + "\n".join(f"- {t}" for t in covered_unique)
+    )
+
+
 # ── LLM briefing ─────────────────────────────────────────────────────────────
 
 def build_briefing(db) -> str:
@@ -130,6 +163,7 @@ def build_briefing(db) -> str:
         deadlines=_deadlines_text(db),
         schedule=_calendar_text(db),
         materials=_materials_text(db),
+        gaps=_gaps_text(db),
     )
     client   = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(

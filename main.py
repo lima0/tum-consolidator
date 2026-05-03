@@ -12,7 +12,7 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 logging.basicConfig(
     level=logging.DEBUG if os.environ.get("DEBUG", "").lower() == "true" else logging.INFO,
@@ -94,6 +94,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="TUMsolidator")
     parser.add_argument("--brief",    action="store_true", help="briefing only, skip sync")
     parser.add_argument("--sync",     action="store_true", help="sync connectors only, no LLM")
+    parser.add_argument("--ask",      type=str, metavar="QUESTION",
+                        help="ask the AI a question about your courses and deadlines")
     parser.add_argument("--limit",    type=int, default=10, metavar="N",
                         help="max PDFs to summarize per run (default: 10)")
     args = parser.parse_args()
@@ -101,7 +103,11 @@ def main() -> None:
     from storage.db import Database
     db = Database()
 
-    if args.brief:
+    if args.ask:
+        from intelligence.agent import ask
+        answer = ask(db, args.ask)
+        print("\n" + answer)
+    elif args.brief:
         brief(db)
     elif args.sync:
         sync(db)

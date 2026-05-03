@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS documents (
 """
 class Database:
     def __init__(self, path: str = "state/data.db"):
-        self.conn = sqlite3.connect(path)
+        self.conn = sqlite3.connect(path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute(CREATE_EVENTS)
         self.conn.execute(CREATE_DOCUMENTS)
