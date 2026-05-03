@@ -550,7 +550,7 @@ def download_course_files(
                     if wrote:
                         total_downloaded += 1
                         from connectors.notify import notify
-                        notify(shortname, f"New material: {mod['name']}")
+                        notify(shortname, f"New material: {mod['name']}", open_path=str(dest))
                     else:
                         total_skipped += 1
 

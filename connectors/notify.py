@@ -18,13 +18,12 @@ def _osascript(title: str, message: str) -> None:
         log.warning("Notification failed: %s", exc)
 
 
-def notify(title: str, message: str) -> None:
+def notify(title: str, message: str, open_path: str | None = None) -> None:
+    cmd = ["terminal-notifier", "-title", title, "-message", message, "-sound", "default"]
+    if open_path:
+        cmd += ["-open", f"file://{open_path}"]
     try:
-        subprocess.run(
-            ["terminal-notifier", "-title", title, "-message", message, "-sound", "default"],
-            check=True,
-            capture_output=True,
-        )
+        subprocess.run(cmd, check=True, capture_output=True)
     except FileNotFoundError:
         _osascript(title, message)
     except subprocess.CalledProcessError as exc:
