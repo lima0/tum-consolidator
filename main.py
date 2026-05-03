@@ -75,9 +75,11 @@ def summarize(db, limit: int = 10) -> None:
 def brief(db) -> None:
     """Generate briefing, open in browser, print to terminal."""
     try:
-        from intelligence.planner import build_briefing, push_to_browser
+        from intelligence.planner import build_briefing, push_to_browser, _deadlines_html, _materials_html
         briefing = build_briefing(db)
         html = (
+            _deadlines_html(db) +
+            _materials_html(db) +
             "<div class='card'>"
             "<h2>Today's Briefing</h2>"
             f"<p class='briefing-text'>{briefing}</p>"
