@@ -28,7 +28,7 @@ _cache_lock      = threading.Lock()
 _cached_briefing = ""
 _cache_ts        = 0.0
 _generating      = False
-_CACHE_TTL       = 300  # seconds
+_CACHE_TTL       = 6000  # seconds
 
 
 def _get_briefing() -> str:

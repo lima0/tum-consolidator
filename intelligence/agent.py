@@ -247,27 +247,39 @@ def _get_document_content(db, title: str) -> str:
 
 def _read_pdf(local_path: str, pages: int = 10) -> str:
     from pathlib import Path
-    from pypdf import PdfReader
-    import warnings
-    from pypdf.errors import PdfReadWarning
-    warnings.filterwarnings("ignore", category=PdfReadWarning)
-
     p = Path(local_path)
     if not p.exists():
         return f"File not found: {local_path}"
+    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     try:
-        reader = PdfReader(str(p))
-        total  = len(reader.pages)
-        limit  = min(pages, total)
-        parts  = []
-        for i in range(limit):
-            text = reader.pages[i].extract_text() or ""
-            if text.strip():
-                parts.append(f"--- Page {i+1} ---\n{text.strip()}")
-        if not parts:
-            return "Could not extract text from this PDF (may be image-based)."
-        suffix = f"\n\n[Showing {limit}/{total} pages]" if total > limit else ""
-        return "\n\n".join(parts) + suffix
+        with open(p, "rb") as f:
+            uploaded = client.beta.files.upload(file=(p.name, f, "application/pdf"))
+        try:
+            response = client.beta.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=4096,
+                betas=["files-api-2025-04-14"],
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"Extract and return the full text content of this PDF "
+                                f"(first {pages} pages max). Preserve problem numbers, "
+                                f"formulas, and structure. No commentary."
+                            ),
+                        },
+                        {
+                            "type": "document",
+                            "source": {"type": "file", "file_id": uploaded.id},
+                        },
+                    ],
+                }],
+            )
+            return response.content[0].text
+        finally:
+            client.beta.files.delete(uploaded.id)
     except Exception as e:
         return f"Error reading PDF: {e}"
 
