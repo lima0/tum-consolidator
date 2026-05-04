@@ -200,6 +200,22 @@ def refresh():
     briefing = _get_briefing()
     return Response(_build_page(briefing), mimetype="text/html")
 
+# Browsers Block file:// paths from localhost
+@app.route("/file")
+def serve_file():
+    from pathlib import Path
+    from flask import send_file, abort
+    rel = request.args.get("path", "")
+    if not rel:
+        abort(400)
+    root = Path(__file__).parent.resolve()
+    path = (root / rel).resolve()
+    if not str(path).startswith(str(root)):
+        abort(403)
+    if not path.exists():
+        abort(404)
+    return send_file(path)
+
 
 @app.route("/ask")
 def ask_endpoint():

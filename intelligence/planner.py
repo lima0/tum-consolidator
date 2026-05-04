@@ -188,7 +188,7 @@ def _deadlines_html(db) -> str:
         SELECT course, title, due, score, max_points, status, url
         FROM events
         WHERE source = 'artemis'
-          AND due BETWEEN datetime('now', '-1 day') AND datetime('now', '+7 days')
+          AND due BETWEEN datetime('now') AND datetime('now', '+7 days')
         ORDER BY due
     """).fetchall()
     if not rows:
@@ -238,8 +238,12 @@ def _materials_html(db) -> str:
         mins = s.get("estimated_minutes", "")
         topics = ", ".join(s.get("topics", [])[:4])
         mins_str = f'<span class="muted">~{mins}min</span>' if mins else ""
-        abs_path = Path(r["local_path"]).resolve() if r["local_path"] else None
-        path_attr = f'href="file://{abs_path}" target="_blank"' if abs_path and abs_path.exists() else ""
+        lp = r["local_path"]
+        if lp and Path(lp).exists():
+            from urllib.parse import quote
+            path_attr = f'href="/file?path={quote(lp)}" target="_blank"'
+        else:
+            path_attr = ""
         title_html = f'<a class="row-title-link" {path_attr}>{r["title"]}</a>' if path_attr else f'<span class="row-title">{r["title"]}</span>'
         items.append(
             f'<div class="row">'
