@@ -53,7 +53,11 @@ def _deadlines_text(db) -> str:
     for r in rows:
         due       = datetime.fromisoformat(r["due"]) if r["due"] else None
         due_str   = due.strftime("%a %d %b %H:%M") if due else "?"
-        score_str = f" (score: {r['score']}/{r['max_points']})" if r["score"] is not None else ""
+        if r["score"] is not None and r["max_points"]:
+            earned = round(r["score"] / 100 * r["max_points"], 2)
+            score_str = f" ({earned}/{r['max_points']}pts)"
+        else:
+            score_str = ""
         status    = f" [{r['status']}]" if r["status"] else ""
         lines.append(f"- {r['course']}: {r['title']}{score_str}{status} — due {due_str}")
     return "\n".join(lines)
@@ -205,7 +209,11 @@ def _deadlines_html(db) -> str:
         else:
             urgency = ""
         due_str = due.strftime("%a %d %b %H:%M") if due else "?"
-        score_str = f'<span class="muted">{r["score"]}/{r["max_points"]}</span> ' if r["score"] is not None else ""
+        if r["score"] is not None and r["max_points"]:
+            earned = round(r["score"] / 100 * r["max_points"], 2)
+            score_str = f'<span class="muted">{earned}/{r["max_points"]}pts</span> '
+        else:
+            score_str = ""
         status_badge = f'<span class="badge badge-{(r["status"] or "").lower()}">{r["status"]}</span> ' if r["status"] else ""
         title_html = (
             f'<a class="row-title-link" href="{r["url"]}" target="_blank">{r["title"]}</a>'

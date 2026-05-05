@@ -205,7 +205,11 @@ def _get_deadlines(db, days: int = 14) -> str:
         due_str = due.strftime("%a %d %b %H:%M") if due else "?"
         delta = (due - now).total_seconds() if due else None
         urgency = " ⚠️ DUE SOON" if delta and delta < 86400 else ""
-        score_str = f" (score: {r['score']}/{r['max_points']})" if r["score"] is not None else ""
+        if r["score"] is not None and r["max_points"]:
+            earned = round(r["score"] / 100 * r["max_points"], 2)
+            score_str = f" ({earned}/{r['max_points']}pts)"
+        else:
+            score_str = ""
         status = f" [{r['status']}]" if r["status"] else ""
         lines.append(f"- **{r['course']}: {r['title']}**{score_str}{status} — due {due_str}{urgency}")
 
