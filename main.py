@@ -96,6 +96,7 @@ def main() -> None:
     parser.add_argument("--sync",     action="store_true", help="sync connectors only, no LLM")
     parser.add_argument("--ask",      type=str, metavar="QUESTION",
                         help="ask the AI a question about your courses and deadlines")
+    parser.add_argument("--embed",     action="store_true", help="backfill embeddings for all summarized docs")
     parser.add_argument("--limit",    type=int, default=10, metavar="N",
                         help="max PDFs to summarize per run (default: 10)")
     args = parser.parse_args()
@@ -103,7 +104,10 @@ def main() -> None:
     from storage.db import Database
     db = Database()
 
-    if args.ask:
+    if args.embed:
+        from intelligence.embeddings import backfill
+        backfill(db)
+    elif args.ask:
         from intelligence.agent import ask
         answer = ask(db, args.ask)
         print("\n" + answer)

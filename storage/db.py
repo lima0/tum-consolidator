@@ -46,6 +46,7 @@ class Database:
         self.conn.execute(CREATE_DOCUMENTS)
         # migration: add first_seen column
         try:
+            self.conn.execute("ALTER TABLE documents ADD COLUMN embedding BLOB DEFAULT NULL")
             self.conn.execute("ALTER TABLE documents ADD COLUMN first_seen TEXT")
             self.conn.execute("UPDATE documents SET first_seen = datetime('now') WHERE first_seen IS NULL")
         except sqlite3.OperationalError:

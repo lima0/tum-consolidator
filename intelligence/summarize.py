@@ -149,6 +149,17 @@ def process_unprocessed(db: Database, limit: int = 0) -> None:
                     updated_at=doc.updated_at,
                 ))
                 db.mark_document_processed(doc.source, doc.source_id)
+                try:
+                    from intelligence.embeddings import embed_document
+                    import numpy as np
+                    vec = embed_document(summary)
+                    db.conn.execute(
+                        "UPDATE documents SET embedding = ? WHERE source = ? AND source_id = ?",
+                        (vec.astype(np.float32).tobytes(), doc.source, doc.source_id),
+                    )
+                    db.conn.commit()
+                except Exception as e:
+                    log.warning("Embedding failed for %s: %s", doc.title, e)
                 log.info("✓ %s", doc.title)
                 break
             except RateLimitError:

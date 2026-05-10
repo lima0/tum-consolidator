@@ -107,17 +107,43 @@ TOOLS = [
 ]
 
 
+def _format_doc_results(rows) -> str:
+    results = []
+    for r in rows:
+        try:
+            s = json.loads(r["summary_json"])
+        except (json.JSONDecodeError, TypeError):
+            continue
+        topics    = ", ".join(s.get("topics", [])[:5])
+        mins      = s.get("estimated_minutes", "?")
+        diff      = s.get("difficulty", "?")
+        path_note = f" [file: {r['local_path']}]" if r["local_path"] else ""
+        results.append(
+            f"Course: {r['course']} | Title: {r['title']}{path_note}\n"
+            f"  Summary: {s.get('summary', '')}\n"
+            f"  Topics: {topics}\n"
+            f"  Effort: ~{mins}min, {diff}"
+        )
+    return "\n\n".join(results) if results else ""
+
+
 def _search_documents(db: Database, query: str, limit: int = 5) -> str:
+    # Semantic search via embeddings (primary)
+    try:
+        from intelligence.embeddings import search_by_embedding
+        rows = search_by_embedding(db, query, limit=limit)
+        if rows:
+            return _format_doc_results(rows)
+    except Exception as e:
+        log.debug("Embedding search failed, falling back to LIKE: %s", e)
+
+    # Keyword fallback for docs without embeddings
     terms = [t.strip() for t in query.replace(",", " ").split() if len(t.strip()) > 1]
     if not terms:
         return "Empty query."
-
     scores: dict[str, tuple[int, object]] = {}
-
     for term in terms:
         pat = f"%{term.lower()}%"
-
-        # title + course match (weight 3)
         for r in db.conn.execute("""
             SELECT source_id, course, title, summary_json, local_path
             FROM documents WHERE processed_at IS NOT NULL AND summary_json IS NOT NULL
@@ -126,20 +152,15 @@ def _search_documents(db: Database, query: str, limit: int = 5) -> str:
             sid = r["source_id"]
             prev_score, _ = scores.get(sid, (0, r))
             scores[sid] = (prev_score + 3, r)
-
-        # individual topic array items (weight 2)
         for r in db.conn.execute("""
             SELECT d.source_id, d.course, d.title, d.summary_json, d.local_path
             FROM documents d, json_each(json_extract(d.summary_json, '$.topics')) t
             WHERE d.processed_at IS NOT NULL AND d.summary_json IS NOT NULL
-              AND json_valid(d.summary_json)
-              AND lower(t.value) LIKE ?
+              AND json_valid(d.summary_json) AND lower(t.value) LIKE ?
         """, (pat,)).fetchall():
             sid = r["source_id"]
             prev_score, _ = scores.get(sid, (0, r))
             scores[sid] = (prev_score + 2, r)
-
-        # summary text match (weight 1)
         for r in db.conn.execute("""
             SELECT source_id, course, title, summary_json, local_path
             FROM documents WHERE processed_at IS NOT NULL AND summary_json IS NOT NULL
@@ -149,41 +170,10 @@ def _search_documents(db: Database, query: str, limit: int = 5) -> str:
             sid = r["source_id"]
             prev_score, _ = scores.get(sid, (0, r))
             scores[sid] = (prev_score + 1, r)
-
-        # key_takeaways match (weight 1)
-        for r in db.conn.execute("""
-            SELECT d.source_id, d.course, d.title, d.summary_json, d.local_path
-            FROM documents d, json_each(json_extract(d.summary_json, '$.key_takeaways')) k
-            WHERE d.processed_at IS NOT NULL AND d.summary_json IS NOT NULL
-              AND json_valid(d.summary_json)
-              AND lower(k.value) LIKE ?
-        """, (pat,)).fetchall():
-            sid = r["source_id"]
-            prev_score, _ = scores.get(sid, (0, r))
-            scores[sid] = (prev_score + 1, r)
-
     if not scores:
         return f"No documents found matching '{query}'."
-
     ranked = sorted(scores.values(), key=lambda x: x[0], reverse=True)[:limit]
-
-    results = []
-    for score, r in ranked:
-        try:
-            s = json.loads(r["summary_json"])
-        except (json.JSONDecodeError, TypeError):
-            continue
-        topics = ", ".join(s.get("topics", [])[:5])
-        mins = s.get("estimated_minutes", "?")
-        diff = s.get("difficulty", "?")
-        path_note = f" [file: {r['local_path']}]" if r["local_path"] else ""
-        results.append(
-            f"Course: {r['course']} | Title: {r['title']}{path_note}\n"
-            f"  Summary: {s.get('summary', '')}\n"
-            f"  Topics: {topics}\n"
-            f"  Effort: ~{mins}min, {diff}"
-        )
-    return "\n\n".join(results)
+    return _format_doc_results([r for _, r in ranked])
 
 
 def _get_deadlines(db, days: int = 14) -> str:

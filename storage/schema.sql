@@ -27,5 +27,6 @@ CREATE TABLE IF NOT EXISTS documents (
     summary_json  TEXT,
     first_seen    TEXT,
     processed_at  TEXT DEFAULT NULL,
+    embedding     BLOB DEFAULT NULL,
     PRIMARY KEY (source, source_id)
 );
