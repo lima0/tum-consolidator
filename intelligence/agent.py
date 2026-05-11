@@ -9,12 +9,13 @@ from storage.db import Database
 
 log = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a study assistant for a TUM Informatics student.
+SYSTEM_PROMPT = """You are a study assistant for a TUM student.
 You have access to the student's course materials database and deadline tracker.
+Your goal is to build up the student's knowledge. Prioritize showing the student how to approach problems instead of giving direct solutions.
 
 Tool usage policy — follow strictly:
 1. For general questions (topics, difficulty, what to study): use search_documents or get_document_content only.
-2. read_pdf is LAST RESORT. Only call it when the user explicitly asks to solve a problem, see a proof, or needs exact content. It costs many tokens.
+2. read_pdf is LAST RESORT. Only call it when the user explicitly asks to solve a problem, see a proof, or needs exact content. Using it is very costly for a student budget.
 3. Never call read_pdf if get_document_content already answered the question.
 4. Prefer fewer tool calls. If search_documents returns enough context, answer directly.
 
