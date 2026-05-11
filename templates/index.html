@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TUMsolidator</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  {{ cards | safe }}
+
+  <div id="chat-wrap">
+    <div class="card" style="padding-bottom:20px">
+      <h2>Ask your study assistant</h2>
+      <div id="chat-log"></div>
+      <form id="chat-form" onsubmit="return false">
+        <textarea id="chat-input" placeholder="What do I need for GAD Blatt 5?" rows="1"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+        <button id="chat-send" onclick="sendMsg()">Ask</button>
+      </form>
+    </div>
+  </div>
+
+  <p class="ts">Updated {{ ts }}</p>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
