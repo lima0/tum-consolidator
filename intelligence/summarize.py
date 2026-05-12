@@ -12,60 +12,19 @@ from storage import models
 log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You analyze TUM Informatics/Informatik course PDFs for a student preparing for exams.
-Your output is consumed by an automated study planner, so you must return strict JSON only.
-no preamble, no markdown fences, no commentary.
 
-Student speaks German and English. Output fields can mix languages where the source does. Match the language of the course if german then german, if english then english.
-Be precise: if the PDF doesn't explicitly state something, DO NOT infer it. Prefer "unknown" over guessing. NO MARKDOWN FENCES, NO ```json... WHATSOEVER
+Match language of the course: German source → German output, English source → English output. Fields may mix languages where the source does.
+Be precise: if the PDF doesn't explicitly state something, do not infer it. Prefer null or empty list over guessing."""
 
-User: "Analyze this file..."
-Start your response with "{"summary":" directly. don't add new lines, no \\n or any formatting whatsover, raw JSON like any API would give.
-Response: "{
-  "summary": "Übungsblatt 2 zu Grundlagen: Algorithmen und Datenstrukturen. Behandelt mathematische Induktion, Laufzeit-Analyse von Funktionen, asymptotische Notation (O, o, Ω, ω, Θ) und deren Eigenschaften. Für Klausurvorbereitung essentiell.",
-  "topics": [
-    "Mathematische Induktion",
-    "Laufzeit-Analyse",
-    "O-Notation und asymptotische Notation (o, O, ω, Ω, Θ)",
-    "Transitivitätsregeln für Landau-Notation",
-    "Funktionswachstum vergleichen",
-    "Rekursive Funktionen analysieren",
-    "Summen und Reihen"
-  ],
-  "estimated_minutes": 240,
-  "prerequisites": [
-    "Mathematische Induktion (Grundlagen)",
-    "Programmierung und Kontrollflussverstehen",
-    "Grundlagen der mathematischen Analysis",
-    "Vertrautheit mit asymptotischer Notation aus Vorlesung"
-  ],
-  "difficulty": "hard",
-  "key_takeaways": [
-    "Induktionsbeweise erfordern sorgfältige Basis- und Induktionsschritte; Formeln aus Hinweisen verwenden",
-    "Laufzeitanalyse: Verschachtelte Schleifen multiplizieren (Funktion 1: O(|A|·|B|)), Fibonacci rekursiv ist exponentiell (Funktion 2: O(2^n)), einfache Rekursion linear (Funktion 3: O(n))",
-    "Landau-Symbole präzise anwenden: o (echt kleiner), O (≤), ω (echt größer), Ω (≥), Θ (gleich); 'u.' wenn unvergleichbar",
-    "Transitivitätsregeln ermöglichen Zwischenschritte bei komplexen Beweisen: o und O sind transitiv",
-    "Ordnung von Funktionen: konstant < logarithmisch < polynomial < exponentiell; 1.1^n wächst langsamer als polynomial mit hohem Grad"
-  ],
-  "problem_count": 8,
-  "release_date": "2024-10-21"
-}"
-"""
-
-USER_PROMPT = """Analyze this file and return JSON with these fields:
-
-{
-  "summary": "2-3 sentence description of what this document is and why a student should care.",
-  "topics": ["specific concepts covered, max 8, use the language the source uses"],
-  "estimated_minutes": <integer, realistic time for an average student to work through this. For lectures: reading time. For tutorials/assignments: solving time.>,
-  "prerequisites": ["concepts the student needs before tackling this. Empty list if it's introductory."],
-  "difficulty": "easy" | "medium" | "hard",
-  "key_takeaways": ["3-5 bullet points a student would write in their notes"],
-  "problem_count": <integer or null. Only for tutorials/assignments. Count distinct Aufgaben/problems.>,
-  "release_date": "<YYYY-MM-DD if the document itself states ANY release/issue/Ausgabe date which is plausible, else null if unknown or uncertain>"
-}
-
-Return only the JSON object.
-DO NOT UNDER ANY CIRCUMSTANCES WHATSOEVER APPEND MARKDOWN FENCES"""
+USER_PROMPT = """Analyze this PDF and populate these fields:
+- summary: 2-3 sentences describing the document and why a student should care.
+- topics: specific concepts covered, max 8 items.
+- estimated_minutes: realistic study time (reading time for lectures, solving time for assignments).
+- prerequisites: concepts needed before tackling this. Empty list if introductory.
+- difficulty: easy, medium, or hard.
+- key_takeaways: 3-5 bullet points a student would write in their notes.
+- problem_count: count of distinct Aufgaben/problems for assignments/tutorials, null otherwise.
+- release_date: YYYY-MM-DD if the document states a release/issue/Ausgabe date - could be a week range etc. - use the first day, null if unknown."""
 
 
 def summarize_document(doc: models.Document) -> dict:
@@ -99,6 +58,47 @@ def summarize_document(doc: models.Document) -> dict:
                     ],
                 }
             ],
+            output_config={
+                "format": {
+                    "type": "json_schema",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "summary": {"type": "string"},
+                            "topics": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "estimated_minutes": {"type": "integer"},
+                            "prerequisites": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "difficulty": {
+                                "type": "string",
+                                "enum": ["easy", "medium", "hard"],
+                            },
+                            "key_takeaways": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "problem_count": {"type": ["integer", "null"]},
+                            "release_date": {"type": ["string", "null"]},
+                        },
+                        "required": [
+                            "summary",
+                            "topics",
+                            "estimated_minutes",
+                            "prerequisites",
+                            "difficulty",
+                            "key_takeaways",
+                            "problem_count",
+                            "release_date",
+                        ],
+                        "additionalProperties": False,
+                    },
+                }
+            },
         )
     finally:
         client.beta.files.delete(uploaded.id)
