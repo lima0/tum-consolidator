@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -56,7 +56,13 @@ def _ensure_authenticated(session: requests.Session) -> bool:
 def _fmt_date(iso):
     if not iso:
         return None
-    return iso[:16].replace("T", " ")
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+        if dt.tzinfo is not None:
+            dt = dt.astimezone().replace(tzinfo=None)
+    except ValueError:
+        return iso[:16].replace("T", " ")
+    return dt.strftime("%Y-%m-%d %H:%M")
 
 
 def _parse_categories(raw_list):

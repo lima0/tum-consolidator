@@ -44,7 +44,7 @@ def _deadlines_text(db) -> str:
         SELECT course, title, due, score, max_points, status
         FROM events
         WHERE source = 'artemis'
-          AND due BETWEEN datetime('now') AND datetime('now', '+14 days')
+          AND due BETWEEN datetime('now', 'localtime') AND datetime('now', 'localtime', '+14 days')
         ORDER BY due
     """).fetchall()
     if not rows:
@@ -69,7 +69,7 @@ def _calendar_text(db) -> str:
         SELECT title, release, extra, event_type
         FROM events
         WHERE source = 'calendar'
-          AND release BETWEEN datetime('now', 'start of day') AND ?
+          AND release BETWEEN datetime('now', 'localtime', 'start of day') AND ?
         ORDER BY release
     """, (tomorrow_end,)).fetchall()
     if not rows:
@@ -192,7 +192,7 @@ def _deadlines_html(db) -> str:
         SELECT course, title, due, score, max_points, status, url
         FROM events
         WHERE source = 'artemis'
-          AND due BETWEEN datetime('now') AND datetime('now', '+14 days')
+          AND due BETWEEN datetime('now', 'localtime') AND datetime('now', 'localtime', '+14 days')
         ORDER BY due
     """).fetchall()
     if not rows:

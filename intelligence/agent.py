@@ -142,7 +142,9 @@ def _search_documents(db: Database, query: str, limit: int = 5) -> str:
     terms = [t.strip() for t in query.replace(",", " ").split() if len(t.strip()) > 1]
     if not terms:
         return "Empty query."
+    
     scores: dict[str, tuple[int, object]] = {}
+
     for term in terms:
         pat = f"%{term.lower()}%"
         for r in db.conn.execute("""
@@ -173,6 +175,7 @@ def _search_documents(db: Database, query: str, limit: int = 5) -> str:
             scores[sid] = (prev_score + 1, r)
     if not scores:
         return f"No documents found matching '{query}'."
+    
     ranked = sorted(scores.values(), key=lambda x: x[0], reverse=True)[:limit]
     return _format_doc_results([r for _, r in ranked])
 
@@ -182,7 +185,7 @@ def _get_deadlines(db, days: int = 14) -> str:
         SELECT course, title, due, score, max_points, status, url
         FROM events
         WHERE source = 'artemis'
-          AND due BETWEEN datetime('now') AND datetime('now', ? || ' days')
+          AND due BETWEEN datetime('now', 'localtime') AND datetime('now', 'localtime', ? || ' days')
         ORDER BY due
     """, (str(days),)).fetchall()
 
