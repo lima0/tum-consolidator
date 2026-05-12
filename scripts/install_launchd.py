@@ -23,7 +23,7 @@ JOBS = {
     "sync": {
         "label":    "com.tumsolidator.sync",
         "plist":    AGENTS_DIR / "com.tumsolidator.sync.plist",
-        "args":     [PYTHON, str(PROJECT_DIR / "main.py"), "--sync", "--limit", "5"],
+        "args":     [PYTHON, str(PROJECT_DIR / "main.py"), "--limit", "5"],
         "interval": 4 * 3600,   # every 4 hours
         "log":      LOGS_DIR / "sync.log",
     },

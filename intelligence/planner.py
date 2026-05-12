@@ -44,7 +44,7 @@ def _deadlines_text(db) -> str:
         SELECT course, title, due, score, max_points, status
         FROM events
         WHERE source = 'artemis'
-          AND due BETWEEN datetime('now') AND datetime('now', '+7 days')
+          AND due BETWEEN datetime('now') AND datetime('now', '+14 days')
         ORDER BY due
     """).fetchall()
     if not rows:
@@ -192,7 +192,7 @@ def _deadlines_html(db) -> str:
         SELECT course, title, due, score, max_points, status, url
         FROM events
         WHERE source = 'artemis'
-          AND due BETWEEN datetime('now') AND datetime('now', '+7 days')
+          AND due BETWEEN datetime('now') AND datetime('now', '+14 days')
         ORDER BY due
     """).fetchall()
     if not rows:
@@ -271,92 +271,14 @@ def _materials_html(db) -> str:
 
 # ── Output ───────────────────────────────────────────────────────────────────
 
-_CSS = """
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f5f5f7;
-    color: #1d1d1f;
-    padding: 40px 20px;
-}
-.card {
-    background: #fff;
-    border-radius: 12px;
-    padding: 28px 32px;
-    max-width: 740px;
-    margin: 0 auto 20px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.08);
-}
-.card h2 {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    color: #aeaeb2;
-    margin-bottom: 16px;
-}
-.briefing-text { font-size: 15px; line-height: 1.75; }
-.briefing-text h1,.briefing-text h2,.briefing-text h3 { font-size: 14px; font-weight: 600; margin: 14px 0 6px; color: #1d1d1f; }
-.briefing-text p { margin: 6px 0; }
-.briefing-text ul,.briefing-text ol { padding-left: 20px; margin: 6px 0; }
-.briefing-text li { margin: 4px 0; }
-.briefing-text strong { font-weight: 600; }
-.briefing-text code { background: #f2f2f7; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-.row {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 9px 0;
-    border-bottom: 1px solid #f2f2f7;
-}
-.row:last-child { border-bottom: none; }
-.pill {
-    font-size: 10px;
-    font-weight: 600;
-    background: #f2f2f7;
-    color: #6e6e73;
-    padding: 2px 7px;
-    border-radius: 20px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.row-title { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; }
-.row-title-link { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; color: #0071e3; text-decoration: none; }
-.row-title-link:hover { text-decoration: underline; }
-.row-meta { font-size: 13px; color: #6e6e73; white-space: nowrap; display: flex; gap: 5px; align-items: center; }
-.topics { font-size: 12px; color: #aeaeb2; width: 100%; padding-left: 2px; }
-.muted { color: #aeaeb2; font-size: 12px; }
-.due { font-size: 13px; }
-.due.overdue { color: #ff3b30; font-weight: 600; }
-.due.soon    { color: #ff9500; font-weight: 600; }
-.badge {
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-}
-.badge-easy        { background: #d1f5d3; color: #1c7a30; }
-.badge-medium      { background: #fff3d1; color: #8a5e00; }
-.badge-hard        { background: #fde8e8; color: #c0392b; }
-.badge-submitted   { background: #d1f5d3; color: #1c7a30; }
-.badge-finished    { background: #d1f5d3; color: #1c7a30; }
-.badge-started     { background: #fff3d1; color: #8a5e00; }
-.badge-not_started { background: #f2f2f7; color: #6e6e73; }
-.badge-overdue     { background: #fde8e8; color: #c0392b; }
-.ts { font-size: 11px; color: #c7c7cc; text-align: center; margin-top: 4px; }
-"""
-
-
 def push_to_browser(html: str, path: str = "/tmp/tumsol_briefing.html") -> None:
-    ts = datetime.now().strftime("%a %d %b %Y, %H:%M")
+    css = (Path(__file__).parent.parent / "static" / "style.css").read_text()
+    ts  = datetime.now().strftime("%a %d %b %Y, %H:%M")
     with open(path, "w", encoding="utf-8") as f:
         f.write(
             f"<html><head><meta charset='utf-8'>"
             f"<script src='https://cdn.jsdelivr.net/npm/marked/marked.min.js'></script>"
-            f"<style>{_CSS}</style></head>"
+            f"<style>{css}</style></head>"
             f"<body>{html}<p class='ts'>Updated {ts}</p>"
             f"<script>document.querySelectorAll('.briefing-md').forEach(el=>{{el.innerHTML=marked.parse(el.dataset.md);}});</script>"
             f"</body></html>"

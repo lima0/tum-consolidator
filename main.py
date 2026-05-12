@@ -118,6 +118,8 @@ def main() -> None:
     else:
         sync(db)
         summarize(db, limit=args.limit)
+        from intelligence.embeddings import backfill
+        backfill(db)
         brief(db)
 
 
