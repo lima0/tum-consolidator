@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+
+.env
+
+# runtime state (README: db, cookies, exported feed)
+state/data.db
+state/*.json
+state/deadlines.ics
+
+# downloaded course materials
+resources/
