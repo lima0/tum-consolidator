@@ -99,6 +99,16 @@ def serve_file():
     return send_file(path)
 
 
+@app.route("/deadlines.ics")
+def deadlines_ics():
+    from ics_export import build_ics
+    return Response(
+        build_ics(db),
+        mimetype="text/calendar",
+        headers={"Content-Disposition": "inline; filename=deadlines.ics"},
+    )
+
+
 @app.route("/ask")
 def ask_endpoint():
     question = request.args.get("q", "").strip()

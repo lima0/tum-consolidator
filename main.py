@@ -4,6 +4,7 @@ TUMsolidator pipeline.
   python main.py           # full sync + summarize + brief
   python main.py --brief   # briefing only (fast — uses existing DB data)
   python main.py --sync    # sync connectors only, no LLM
+  python main.py --ics     # export Artemis deadlines to state/deadlines.ics
 """
 
 import argparse
@@ -97,6 +98,7 @@ def main() -> None:
     parser.add_argument("--ask",      type=str, metavar="QUESTION",
                         help="ask the AI a question about your courses and deadlines")
     parser.add_argument("--embed",     action="store_true", help="backfill embeddings for all summarized docs")
+    parser.add_argument("--ics",      action="store_true", help="export Artemis deadlines to state/deadlines.ics")
     parser.add_argument("--limit",    type=int, default=10, metavar="N",
                         help="max PDFs to summarize per run (default: 10)")
     args = parser.parse_args()
@@ -107,6 +109,9 @@ def main() -> None:
     if args.embed:
         from intelligence.embeddings import backfill
         backfill(db)
+    elif args.ics:
+        from ics_export import write_ics
+        print(f"Wrote {write_ics(db)}")
     elif args.ask:
         from intelligence.agent import ask
         answer = ask(db, args.ask)

@@ -46,7 +46,24 @@ python -m intelligence.summarize
 
 # Generate and push daily briefing to Apple Notes
 python -m intelligence.planner
+
+# Export Artemis deadlines as an iCalendar feed
+python -m ics_export                # writes state/deadlines.ics
 ```
+
+## Calendar feed
+
+Assignment deadlines can be exported to your calendar app:
+
+- **Subscribe** (auto-updating): run the web UI (`python app.py`) and add
+  `http://localhost:5050/deadlines.ics` as a calendar subscription in
+  Apple/Google Calendar.
+- **One-off import**: `python main.py --ics` (or `python -m ics_export`)
+  writes `state/deadlines.ics`, which you can import manually.
+
+Each deadline becomes an event with the submission status and score in the
+description, plus a reminder 24 h before it's due. Only Artemis assignments
+are exported — TUM Campus Calendar events already live in your calendar.
 
 ## Sources
 
